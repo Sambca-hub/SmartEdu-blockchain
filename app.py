@@ -4,7 +4,7 @@ import streamlit as st
 
 from modules.recommendation import recommend_resources
 from modules.prediction import predict_marks, load_training_data, evaluate_model
-from modules.blockchain import create_blockchain, verify_blockchain
+from modules.blockchain import create_block, verify_blockchain
 
 st.set_page_config(page_title="SmartEdu", page_icon="🎓", layout="wide")
 
@@ -308,13 +308,35 @@ elif page == "Blockchain Security":
                 if id_column and pd.notna(selected[id_column])
                 else f"STU-{selected_index + 1:04d}"
             )
-            marks = float(selected["Marks"])
+            original_marks = float(selected["Marks"])
             attendance = float(selected["Attendance"])
+
+            st.subheader("Edit Academic Marks")
+            st.caption(
+                "Marks are editable here. The grade updates automatically. "
+                "Saving creates a new blockchain entry; previous entries are preserved."
+            )
+            marks = st.number_input(
+                "Marks (out of 100)",
+                min_value=0.0,
+                max_value=100.0,
+                value=max(0.0, min(100.0, original_marks)),
+                step=1.0,
+                key=f"blockchain_marks_{selected_index}",
+            )
             grade = calculate_grade(marks)
+            reason = st.text_input(
+                "Correction reason (optional)",
+                placeholder="e.g. Marks corrected after re-evaluation",
+                key=f"blockchain_reason_{selected_index}",
+            )
 
             preview_col1, preview_col2, preview_col3 = st.columns(3)
             preview_col1.metric("Student", student_name)
-            preview_col2.metric("Marks", f"{marks:g}/100")
+            preview_col2.metric(
+                "Marks", f"{marks:g}/100",
+                delta=f"{marks - original_marks:+g} from dataset" if marks != original_marks else None,
+            )
             preview_col3.metric("Calculated Grade", grade)
             st.write({
                 "Student ID": student_id,
@@ -322,25 +344,32 @@ elif page == "Blockchain Security":
                 "Semester": str(selected["Semester"]),
                 "Subject": str(selected["Subject"]),
                 "Attendance": f"{attendance:g}%",
+                "Original dataset marks": f"{original_marks:g}/100",
             })
 
-            if st.button("Generate Blockchain Record", type="primary"):
+            if st.button("Save Marks to Blockchain", type="primary"):
                 record = {
                     "student_id": student_id,
                     "name": student_name,
                     "department": str(selected["Department"]),
                     "semester": str(selected["Semester"]),
                     "subject": str(selected["Subject"]),
-                    "marks": marks,
+                    "marks": float(marks),
                     "attendance": attendance,
                     "grade": grade,
+                    "correction_reason": reason.strip() or "Initial record / marks update",
                 }
-                blockchain = create_blockchain([record])
-                st.session_state["blockchain"] = blockchain
-                st.success("Academic record secured successfully!")
+                chain = st.session_state.setdefault("blockchain", [])
+                previous_hash = chain[-1]["hash"] if chain else "0"
+                new_block = create_block(record, previous_hash)
+                chain.append(new_block)
+                st.success(
+                    "Academic record added to the blockchain. "
+                    "Earlier records have been preserved."
+                )
                 st.write("Generated SHA-256 Hash:")
-                st.code(blockchain[0]["hash"])
-                st.json(blockchain[0]["record"])
+                st.code(new_block["hash"])
+                st.json(new_block["record"])
 
             st.caption(
                 "Grade scale: A+ (90–100), A (80–89), B (70–79), "

@@ -45,3 +45,8 @@ hashed blockchain record; users no longer need to type a grade manually.
 Grade scale: A+ (90–100), A (80–89), B (70–79), C (60–69), D (50–59),
 E (40–49), and F (below 40). If the dataset has no student ID column, the app
 creates a display identifier based on the selected row.
+
+
+## Blockchain marks editing update
+
+The Blockchain Security page now includes an editable marks input (0–100). The grade is recalculated automatically from the entered marks. Clicking **Save Marks to Blockchain** appends a new hash-linked block, preserving earlier records rather than overwriting them. An optional correction reason is stored with each entry. Use **Verify Blockchain** to validate the complete chain.
